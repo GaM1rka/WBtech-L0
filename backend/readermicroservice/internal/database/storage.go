@@ -27,5 +27,9 @@ func new(cfg Config) (*DB, error) {
 		configs.RLogger.Println("Error while initializing new DB: ", err)
 		return nil, err
 	}
+	if err = db.Ping(); err != nil {
+		configs.RLogger.Println("Falied to ping DB: ", err)
+		return nil, err
+	}
 	return &DB{db}, nil
 }
