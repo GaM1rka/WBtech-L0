@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"readermicroservice/internal/database"
 	"readermicroservice/internal/models"
 	"sync"
 )
@@ -22,8 +23,13 @@ func (c *Cache) Add(order models.Order) {
 	c.elements[order.OrderUID] = order
 }
 
-func (c *Cache) ResetDB() {
+func (c *Cache) ResetDB(db *database.DB) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-
+	orders, err := db.GetAll()
+	if err != nil {
+		for _, item := range orders {
+			c.elements[item.OrderUID] = item
+		}
+	}
 }

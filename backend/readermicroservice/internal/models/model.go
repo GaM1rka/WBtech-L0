@@ -2,6 +2,13 @@ package models
 
 import "time"
 
+type Config struct {
+	Port     string
+	User     string
+	Password string
+	DBName   string
+}
+
 type Order struct {
 	OrderUID          string    `json:"order_uid"`
 	TrackNumber       string    `json:"track_number"`
