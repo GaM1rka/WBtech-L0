@@ -8,19 +8,19 @@ import (
 
 type Cache struct {
 	mu       sync.RWMutex
-	elements map[string]models.Order
+	Elements map[string]models.Order
 }
 
 func New() *Cache {
 	return &Cache{
-		elements: make(map[string]models.Order),
+		Elements: make(map[string]models.Order),
 	}
 }
 
 func (c *Cache) Add(order models.Order) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.elements[order.OrderUID] = order
+	c.Elements[order.OrderUID] = order
 }
 
 func (c *Cache) ResetDB(db *database.DB) {
@@ -29,7 +29,7 @@ func (c *Cache) ResetDB(db *database.DB) {
 	orders, err := db.GetAll()
 	if err != nil {
 		for _, item := range orders {
-			c.elements[item.OrderUID] = item
+			c.Elements[item.OrderUID] = item
 		}
 	}
 }

@@ -13,14 +13,7 @@ type DB struct {
 	*sql.DB
 }
 
-type Config struct {
-	Port     string
-	User     string
-	Password string
-	DBName   string
-}
-
-func New(cfg Config) (*DB, error) {
+func New(cfg models.Config) (*DB, error) {
 	connStr := fmt.Sprintf("port=%s user=%s password=%s dbname=%s sslmode=disable",
 		cfg.Port, cfg.User, cfg.Password, cfg.DBName)
 	db, err := sql.Open("postgres", connStr)
@@ -164,6 +157,10 @@ func (db *DB) Insert(data models.Order) error {
 	}
 
 	return nil
+}
+
+func (db *DB) GetByUUID(order_uuid string) (*models.Order, error) {
+	return nil, nil
 }
 
 func (db *DB) GetAll() ([]models.Order, error) {

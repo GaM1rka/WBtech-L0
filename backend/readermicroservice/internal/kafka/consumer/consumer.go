@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"readermicroservice/configs"
-	"readermicroservice/internal/kafka/models"
+	"readermicroservice/internal/cache"
+	"readermicroservice/internal/database"
+	"readermicroservice/internal/models"
 
 	"github.com/segmentio/kafka-go"
 )
@@ -13,7 +15,7 @@ const (
 	topicName string = "orders-topic"
 )
 
-func Listen() {
+func Listen(cache *cache.Cache, db *database.DB) {
 	reader := kafka.NewReader(kafka.ReaderConfig{
 		Brokers: configs.Address,
 		Topic:   topicName,
@@ -31,6 +33,7 @@ func Listen() {
 			configs.RLogger.Println("Error while unmarshalling message from kafka")
 			continue
 		}
-		
+		cache.Elements[order.OrderUID] = order
+		db.Insert(order)
 	}
 }
