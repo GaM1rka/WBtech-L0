@@ -31,6 +31,6 @@ func Listen() {
 			configs.RLogger.Println("Error while unmarshalling message from kafka")
 			continue
 		}
-
+		
 	}
 }

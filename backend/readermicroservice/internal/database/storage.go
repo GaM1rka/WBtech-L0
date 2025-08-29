@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"readermicroservice/configs"
-	"readermicroservice/internal/kafka/models"
+	"readermicroservice/internal/models"
 
 	_ "github.com/lib/pq"
 )
@@ -50,7 +50,8 @@ func (db *DB) CreateTables() error {
 		"shardkey VARCHAR(100)," +
 		"sm_id INTEGER," +
 		"date_created TIMESTAMP," +
-		"oof_shard VARCHAR(100),")
+		"oof_shard VARCHAR(100)" +
+		")")
 
 	if err != nil {
 		configs.RLogger.Println("Error while creating a table orders: ", err)
@@ -96,6 +97,28 @@ func (db *DB) CreateTables() error {
 		return err
 	}
 
+	// Создание таблицы items
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS items (" +
+		"id SERIAL PRIMARY KEY," +
+		"order_uid VARCHAR(100) REFERENCES orders(order_uid)," +
+		"chrt_id INTEGER," +
+		"track_number VARCHAR(100)," +
+		"price INTEGER," +
+		"rid VARCHAR(100)," +
+		"name VARCHAR(255)," +
+		"sale INTEGER," +
+		"size VARCHAR(50)," +
+		"total_price INTEGER," +
+		"nm_id INTEGER," +
+		"brand VARCHAR(100)," +
+		"status INTEGER" +
+		")")
+
+	if err != nil {
+		configs.RLogger.Println("Error while creating a table items: ", err)
+		return err
+	}
+
 	return nil
 }
 
@@ -110,7 +133,7 @@ func (db *DB) Insert(data models.Order) error {
 	}
 
 	_, err = db.Exec("INSERT INTO delivery(order_uid, name, phone, zip, city, address, region, email)"+
-		"VALUES ($1, $2, $3, $4, $5, $6, $7)", data.Delivery.Name, data.Delivery.Phone,
+		"VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", data.OrderUID, data.Delivery.Name, data.Delivery.Phone,
 		data.Delivery.Zip, data.Delivery.City, data.Delivery.Address, data.Delivery.Region, data.Delivery.Email)
 	if err != nil {
 		configs.RLogger.Println("Error while inserting data to delivery table: ", err)
@@ -141,4 +164,79 @@ func (db *DB) Insert(data models.Order) error {
 	}
 
 	return nil
+}
+
+func (db *DB) GetAll() ([]models.Order, error) {
+	rows, err := db.Query("SELECT * FROM orders")
+	if err != nil {
+		configs.RLogger.Println("Error while reading data from orders table: ", err)
+		return nil, err
+	}
+
+	orders := make([]models.Order, 0)
+
+	defer rows.Close()
+	for rows.Next() {
+		var order models.Order
+		err := rows.Scan(&order.OrderUID, &order.TrackNumber, &order.Entry, &order.Locale,
+			&order.InternalSignature, &order.CustomerID, &order.DeliveryService, &order.Shardkey,
+			&order.SmID, &order.DateCreated, &order.OofShard)
+		if err != nil {
+			configs.RLogger.Println("Error scanning order: ", err)
+			continue
+		}
+
+		// Получаем данные доставки
+		var delivery models.Delivery
+		row := db.QueryRow("SELECT name, phone, zip, city, address, region, email FROM delivery WHERE order_uid = $1", order.OrderUID)
+		err = row.Scan(&delivery.Name, &delivery.Phone, &delivery.Zip, &delivery.City,
+			&delivery.Address, &delivery.Region, &delivery.Email)
+		if err != nil {
+			configs.RLogger.Println("Error getting delivery for order ", order.OrderUID, ": ", err)
+			continue
+		}
+		order.Delivery = delivery
+
+		// Получаем данные оплаты
+		var payment models.Payment
+		row = db.QueryRow("SELECT transaction, request_id, currency, provider, amount, payment_dt, bank, delivery_cost, goods_total, custom_fee FROM payments WHERE order_uid = $1", order.OrderUID)
+		err = row.Scan(&payment.Transaction, &payment.RequestID, &payment.Currency, &payment.Provider,
+			&payment.Amount, &payment.PaymentDt, &payment.Bank, &payment.DeliveryCost,
+			&payment.GoodsTotal, &payment.CustomFee)
+		if err != nil {
+			configs.RLogger.Println("Error getting payment for order ", order.OrderUID, ": ", err)
+			continue
+		}
+		order.Payment = payment
+
+		// Получаем товары
+		itemRows, err := db.Query("SELECT chrt_id, track_number, price, rid, name, sale, size, total_price, nm_id, brand, status FROM items WHERE order_uid = $1", order.OrderUID)
+		if err != nil {
+			configs.RLogger.Println("Error getting items for order ", order.OrderUID, ": ", err)
+			continue
+		}
+		defer itemRows.Close()
+
+		var items []models.Item
+		for itemRows.Next() {
+			var item models.Item
+			err := itemRows.Scan(&item.ChrtID, &item.TrackNumber, &item.Price, &item.Rid, &item.Name,
+				&item.Sale, &item.Size, &item.TotalPrice, &item.NmID, &item.Brand, &item.Status)
+			if err != nil {
+				configs.RLogger.Println("Error scanning item for order ", order.OrderUID, ": ", err)
+				continue
+			}
+			items = append(items, item)
+		}
+		order.Items = items
+
+		orders = append(orders, order)
+	}
+
+	if err = rows.Err(); err != nil {
+		configs.RLogger.Println("Error iterating orders: ", err)
+		return nil, err
+	}
+
+	return orders, nil
 }
