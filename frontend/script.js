@@ -21,12 +21,14 @@ function searchOrder() {
     fetch(`${API_BASE_URL}/order/${orderId}`)
         .then(response => {
             if (!response.ok) {
-                if (response.status >= 400) {
+                if (response.status === 404) {
                     throw new Error('Заказ не найден');
                 } else if (response.status === 400) {
                     throw new Error('Неверный формат ID заказа');
+                } else if (response.status >= 500) {
+                    throw new Error('Ошибка сервера. Попробуйте позже');
                 } else {
-                    throw new Error(`Ошибка сервера: ${response.status}`);
+                    throw new Error(`Ошибка HTTP: ${response.status} ${response.statusText}`);
                 }
             }
             return response.json();
