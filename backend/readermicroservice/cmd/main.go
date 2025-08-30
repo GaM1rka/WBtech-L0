@@ -6,6 +6,7 @@ import (
 	"readermicroservice/internal"
 	"readermicroservice/internal/cache"
 	"readermicroservice/internal/database"
+	"readermicroservice/internal/kafka/consumer"
 	"readermicroservice/internal/models"
 )
 
@@ -21,21 +22,29 @@ func main() {
 
 	cfg := models.Config{
 		Port:     "5432",
-		User:     "testUser",
-		Password: "testPassword",
-		DBName:   "testDBName",
+		User:     "myuser",
+		Password: "mypassword",
+		DBName:   "mydatabase",
 	}
 	db, err := database.New(cfg)
 	if err != nil {
 		configs.RLogger.Println("Error while creating database: ", err)
 	}
+	err = db.CreateTables()
+
+	if err != nil {
+		configs.RLogger.Println("Error while creating tables in DB: ", err)
+	}
+
 	c := cache.New()
 	c.ResetDB(db)
+
+	go consumer.Listen(c, db)
 
 	handler := internal.NewHandler(c, db)
 
 	http.HandleFunc("/order/", handler.OrderHandler)
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":8081", nil); err != nil {
 		return
 	}
 }
