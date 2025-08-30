@@ -112,11 +112,13 @@ func (db *DB) CreateTables() error {
 		return err
 	}
 
+	configs.RLogger.Println("Successfuly created tables!")
 	return nil
 }
 
 func (db *DB) Insert(data models.Order) error {
-	_, err := db.Exec("INSERT INTO orders"+
+	_, err := db.Exec("INSERT INTO orders "+
+		"(order_uid, track_number, entry, locale, internal_signature, customer_id, delivery_service, shardkey, sm_id, date_created, oof_shard) "+
 		"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
 		data.OrderUID, data.TrackNumber, data.Entry, data.Locale, data.InternalSignature,
 		data.CustomerID, data.DeliveryService, data.Shardkey, data.SmID, data.DateCreated, data.OofShard)
@@ -133,7 +135,7 @@ func (db *DB) Insert(data models.Order) error {
 		return err
 	}
 
-	_, err = db.Exec("INSERT INTO payment(order_uid, transaction, request_id, currency, provider, amount, payment_dt, bank, delivery_cost, goods_total, custom_fee) "+
+	_, err = db.Exec("INSERT INTO payments(order_uid, transaction, request_id, currency, provider, amount, payment_dt, bank, delivery_cost, goods_total, custom_fee) "+
 		"VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)",
 		data.OrderUID, data.Payment.Transaction, data.Payment.RequestID, data.Payment.Currency,
 		data.Payment.Provider, data.Payment.Amount, data.Payment.PaymentDt, data.Payment.Bank,
@@ -159,8 +161,61 @@ func (db *DB) Insert(data models.Order) error {
 	return nil
 }
 
-func (db *DB) GetByUUID(order_uuid string) (*models.Order, error) {
-	return nil, nil
+func (db *DB) GetByUID(order_uid string) (*models.Order, error) {
+	row := db.QueryRow("SELECT * FROM orders WHERE order_uid = $1", order_uid)
+	var order models.Order
+	err := row.Scan(&order.OrderUID, &order.TrackNumber, &order.Entry, &order.Locale,
+		&order.InternalSignature, &order.CustomerID, &order.DeliveryService, &order.Shardkey,
+		&order.SmID, &order.DateCreated, &order.OofShard)
+	if err != nil {
+		configs.RLogger.Println("Error scanning order: ", err)
+		return nil, err
+	}
+
+	// Получаем данные доставки
+	var delivery models.Delivery
+	row = db.QueryRow("SELECT name, phone, zip, city, address, region, email FROM delivery WHERE order_uid = $1", order_uid)
+	err = row.Scan(&delivery.Name, &delivery.Phone, &delivery.Zip, &delivery.City,
+		&delivery.Address, &delivery.Region, &delivery.Email)
+	if err != nil {
+		configs.RLogger.Println("Error getting delivery for order ", order.OrderUID, ": ", err)
+		return nil, err
+	}
+	order.Delivery = delivery
+
+	// Получаем данные оплаты
+	var payment models.Payment
+	row = db.QueryRow("SELECT transaction, request_id, currency, provider, amount, payment_dt, bank, delivery_cost, goods_total, custom_fee FROM payments WHERE order_uid = $1", order_uid)
+	err = row.Scan(&payment.Transaction, &payment.RequestID, &payment.Currency, &payment.Provider,
+		&payment.Amount, &payment.PaymentDt, &payment.Bank, &payment.DeliveryCost,
+		&payment.GoodsTotal, &payment.CustomFee)
+	if err != nil {
+		configs.RLogger.Println("Error getting payment for order ", order.OrderUID, ": ", err)
+		return nil, err
+	}
+	order.Payment = payment
+
+	// Получаем товары
+	itemRows, err := db.Query("SELECT chrt_id, track_number, price, rid, name, sale, size, total_price, nm_id, brand, status FROM items WHERE order_uid = $1", order_uid)
+	if err != nil {
+		configs.RLogger.Println("Error getting items for order ", order.OrderUID, ": ", err)
+		return nil, err
+	}
+	defer itemRows.Close()
+
+	var items []models.Item
+	for itemRows.Next() {
+		var item models.Item
+		err := itemRows.Scan(&item.ChrtID, &item.TrackNumber, &item.Price, &item.Rid, &item.Name,
+			&item.Sale, &item.Size, &item.TotalPrice, &item.NmID, &item.Brand, &item.Status)
+		if err != nil {
+			configs.RLogger.Println("Error scanning item for order ", order.OrderUID, ": ", err)
+			continue
+		}
+		items = append(items, item)
+	}
+	order.Items = items
+	return &order, nil
 }
 
 func (db *DB) GetAll() ([]models.Order, error) {

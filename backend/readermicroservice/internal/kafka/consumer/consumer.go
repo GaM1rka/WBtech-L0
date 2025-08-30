@@ -34,6 +34,9 @@ func Listen(cache *cache.Cache, db *database.DB) {
 			continue
 		}
 		cache.Elements[order.OrderUID] = order
-		db.Insert(order)
+		err = db.Insert(order)
+		if err == nil {
+			configs.RLogger.Println("Successfuly read the message from broker!")
+		}
 	}
 }
