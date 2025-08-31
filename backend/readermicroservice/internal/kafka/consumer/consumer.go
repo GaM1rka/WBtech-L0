@@ -25,9 +25,9 @@ func Listen(cache *cache.Cache, db *database.DB) {
 	for {
 		msg, err := reader.ReadMessage(context.Background())
 		if err != nil {
-			configs.RLogger.Println("Error while reading message from kafka")
 			continue
 		}
+		configs.RLogger.Printf("Received message: %s", string(msg.Value))
 		var order models.Order
 		if err = json.Unmarshal(msg.Value, &order); err != nil {
 			configs.RLogger.Println("Error while unmarshalling message from kafka")

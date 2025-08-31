@@ -14,8 +14,8 @@ type DB struct {
 }
 
 func New(cfg models.Config) (*DB, error) {
-	connStr := fmt.Sprintf("port=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.Port, cfg.User, cfg.Password, cfg.DBName)
+	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		configs.RLogger.Println("Error while initializing new DB: ", err)
