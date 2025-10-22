@@ -1,9 +1,10 @@
 package cache
 
 import (
+	"sync"
+
 	"readermicroservice/internal/database"
 	"readermicroservice/internal/models"
-	"sync"
 )
 
 type Cache struct {

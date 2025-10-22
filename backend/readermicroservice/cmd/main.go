@@ -2,13 +2,14 @@ package main
 
 import (
 	"net/http"
+	"time"
+
 	"readermicroservice/configs"
 	"readermicroservice/internal"
 	"readermicroservice/internal/cache"
 	"readermicroservice/internal/database"
 	"readermicroservice/internal/kafka/consumer"
 	"readermicroservice/internal/models"
-	"time"
 )
 
 type Config struct {
