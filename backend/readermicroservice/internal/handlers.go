@@ -3,10 +3,11 @@ package internal
 import (
 	"encoding/json"
 	"net/http"
+	"strings"
+
 	"readermicroservice/configs"
 	"readermicroservice/internal/cache"
 	"readermicroservice/internal/database"
-	"strings"
 )
 
 type Handler struct {
