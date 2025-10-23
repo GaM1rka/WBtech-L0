@@ -4,8 +4,8 @@ import (
 	"context"
 	"encoding/json"
 
-	"readermicroservice/configs"
 	"readermicroservice/internal/cache"
+	"readermicroservice/internal/config"
 	"readermicroservice/internal/database"
 	"readermicroservice/internal/models"
 
@@ -18,7 +18,7 @@ const (
 
 func Listen(cache *cache.Cache, db *database.DB) {
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: configs.Address,
+		Brokers: config.Address,
 		Topic:   topicName,
 	})
 	defer reader.Close()
@@ -28,16 +28,16 @@ func Listen(cache *cache.Cache, db *database.DB) {
 		if err != nil {
 			continue
 		}
-		configs.RLogger.Printf("Received message: %s", string(msg.Value))
+		config.RLogger.Printf("Received message: %s", string(msg.Value))
 		var order models.Order
 		if err = json.Unmarshal(msg.Value, &order); err != nil {
-			configs.RLogger.Println("Error while unmarshalling message from kafka")
+			config.RLogger.Println("Error while unmarshalling message from kafka")
 			continue
 		}
 		cache.Elements[order.OrderUID] = order
 		err = db.Insert(order)
 		if err == nil {
-			configs.RLogger.Println("Successfuly read the message from broker!")
+			config.RLogger.Println("Successfuly read the message from broker!")
 		}
 	}
 }
