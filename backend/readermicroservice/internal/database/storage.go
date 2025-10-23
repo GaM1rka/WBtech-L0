@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	"readermicroservice/configs"
+	"readermicroservice/internal/config"
 	"readermicroservice/internal/models"
 
 	_ "github.com/lib/pq"
@@ -14,23 +14,32 @@ type DB struct {
 	*sql.DB
 }
 
+const (
+	path string = "readermicroservice/configs/main.yml"
+)
+
 func New(cfg models.Config) (*DB, error) {
+	var DBConfig *config.DBConfig
+	DBConfig, err := config.LoadDBConfig(path)
+	if err != nil {
+		return nil, err
+	}
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.DBName)
+		DBConfig.Host, DBConfig.Port, DBConfig.User, DBConfig.Password, DBConfig.Database)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		configs.RLogger.Println("Error while initializing new DB: ", err)
+		config.RLogger.Println("Error while initializing new DB: ", err)
 		return nil, err
 	}
 	if err = db.Ping(); err != nil {
-		configs.RLogger.Println("Falied to ping DB: ", err)
+		config.RLogger.Println("Falied to ping DB: ", err)
 		return nil, err
 	}
 	return &DB{db}, nil
 }
 
 func (db *DB) CreateTables() error {
-	configs.RLogger.Println("Creating Tables.")
+	config.RLogger.Println("Creating Tables.")
 
 	// Создание таблицы orders
 	_, err := db.Exec("CREATE TABLE IF NOT EXISTS orders (" +
@@ -48,7 +57,7 @@ func (db *DB) CreateTables() error {
 		")")
 
 	if err != nil {
-		configs.RLogger.Println("Error while creating a table orders: ", err)
+		config.RLogger.Println("Error while creating a table orders: ", err)
 		return err
 	}
 
@@ -66,7 +75,7 @@ func (db *DB) CreateTables() error {
 		")")
 
 	if err != nil {
-		configs.RLogger.Println("Error while creating a table delivery: ", err)
+		config.RLogger.Println("Error while creating a table delivery: ", err)
 		return err
 	}
 
@@ -87,7 +96,7 @@ func (db *DB) CreateTables() error {
 		")")
 
 	if err != nil {
-		configs.RLogger.Println("Error while creating a table payments: ", err)
+		config.RLogger.Println("Error while creating a table payments: ", err)
 		return err
 	}
 
@@ -109,11 +118,11 @@ func (db *DB) CreateTables() error {
 		")")
 
 	if err != nil {
-		configs.RLogger.Println("Error while creating a table items: ", err)
+		config.RLogger.Println("Error while creating a table items: ", err)
 		return err
 	}
 
-	configs.RLogger.Println("Successfuly created tables!")
+	config.RLogger.Println("Successfuly created tables!")
 	return nil
 }
 
@@ -124,7 +133,7 @@ func (db *DB) Insert(data models.Order) error {
 		data.OrderUID, data.TrackNumber, data.Entry, data.Locale, data.InternalSignature,
 		data.CustomerID, data.DeliveryService, data.Shardkey, data.SmID, data.DateCreated, data.OofShard)
 	if err != nil {
-		configs.RLogger.Println("Error while inserting data to orders table: ", err)
+		config.RLogger.Println("Error while inserting data to orders table: ", err)
 		return err
 	}
 
@@ -132,7 +141,7 @@ func (db *DB) Insert(data models.Order) error {
 		"VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", data.OrderUID, data.Delivery.Name, data.Delivery.Phone,
 		data.Delivery.Zip, data.Delivery.City, data.Delivery.Address, data.Delivery.Region, data.Delivery.Email)
 	if err != nil {
-		configs.RLogger.Println("Error while inserting data to delivery table: ", err)
+		config.RLogger.Println("Error while inserting data to delivery table: ", err)
 		return err
 	}
 
@@ -142,7 +151,7 @@ func (db *DB) Insert(data models.Order) error {
 		data.Payment.Provider, data.Payment.Amount, data.Payment.PaymentDt, data.Payment.Bank,
 		data.Payment.DeliveryCost, data.Payment.GoodsTotal, data.Payment.CustomFee)
 	if err != nil {
-		configs.RLogger.Println("Error while inserting data to payment table: ", err)
+		config.RLogger.Println("Error while inserting data to payment table: ", err)
 		return err
 	}
 
@@ -154,7 +163,7 @@ func (db *DB) Insert(data models.Order) error {
 			data.OrderUID, it.ChrtID, it.TrackNumber, it.Price, it.Rid, it.Name,
 			it.Sale, it.Size, it.TotalPrice, it.NmID, it.Brand, it.Status)
 		if err != nil {
-			configs.RLogger.Println("Error while inserting data to items table: ", err)
+			config.RLogger.Println("Error while inserting data to items table: ", err)
 			return err
 		}
 	}
@@ -169,7 +178,7 @@ func (db *DB) GetByUID(order_uid string) (*models.Order, error) {
 		&order.InternalSignature, &order.CustomerID, &order.DeliveryService, &order.Shardkey,
 		&order.SmID, &order.DateCreated, &order.OofShard)
 	if err != nil {
-		configs.RLogger.Println("Error scanning order: ", err)
+		config.RLogger.Println("Error scanning order: ", err)
 		return nil, err
 	}
 
@@ -179,7 +188,7 @@ func (db *DB) GetByUID(order_uid string) (*models.Order, error) {
 	err = row.Scan(&delivery.Name, &delivery.Phone, &delivery.Zip, &delivery.City,
 		&delivery.Address, &delivery.Region, &delivery.Email)
 	if err != nil {
-		configs.RLogger.Println("Error getting delivery for order ", order.OrderUID, ": ", err)
+		config.RLogger.Println("Error getting delivery for order ", order.OrderUID, ": ", err)
 		return nil, err
 	}
 	order.Delivery = delivery
@@ -191,7 +200,7 @@ func (db *DB) GetByUID(order_uid string) (*models.Order, error) {
 		&payment.Amount, &payment.PaymentDt, &payment.Bank, &payment.DeliveryCost,
 		&payment.GoodsTotal, &payment.CustomFee)
 	if err != nil {
-		configs.RLogger.Println("Error getting payment for order ", order.OrderUID, ": ", err)
+		config.RLogger.Println("Error getting payment for order ", order.OrderUID, ": ", err)
 		return nil, err
 	}
 	order.Payment = payment
@@ -199,7 +208,7 @@ func (db *DB) GetByUID(order_uid string) (*models.Order, error) {
 	// Получаем товары
 	itemRows, err := db.Query("SELECT chrt_id, track_number, price, rid, name, sale, size, total_price, nm_id, brand, status FROM items WHERE order_uid = $1", order_uid)
 	if err != nil {
-		configs.RLogger.Println("Error getting items for order ", order.OrderUID, ": ", err)
+		config.RLogger.Println("Error getting items for order ", order.OrderUID, ": ", err)
 		return nil, err
 	}
 	defer itemRows.Close()
@@ -210,7 +219,7 @@ func (db *DB) GetByUID(order_uid string) (*models.Order, error) {
 		err := itemRows.Scan(&item.ChrtID, &item.TrackNumber, &item.Price, &item.Rid, &item.Name,
 			&item.Sale, &item.Size, &item.TotalPrice, &item.NmID, &item.Brand, &item.Status)
 		if err != nil {
-			configs.RLogger.Println("Error scanning item for order ", order.OrderUID, ": ", err)
+			config.RLogger.Println("Error scanning item for order ", order.OrderUID, ": ", err)
 			continue
 		}
 		items = append(items, item)
@@ -222,7 +231,7 @@ func (db *DB) GetByUID(order_uid string) (*models.Order, error) {
 func (db *DB) GetAll() ([]models.Order, error) {
 	rows, err := db.Query("SELECT * FROM orders")
 	if err != nil {
-		configs.RLogger.Println("Error while reading data from orders table: ", err)
+		config.RLogger.Println("Error while reading data from orders table: ", err)
 		return nil, err
 	}
 
@@ -235,7 +244,7 @@ func (db *DB) GetAll() ([]models.Order, error) {
 			&order.InternalSignature, &order.CustomerID, &order.DeliveryService, &order.Shardkey,
 			&order.SmID, &order.DateCreated, &order.OofShard)
 		if err != nil {
-			configs.RLogger.Println("Error scanning order: ", err)
+			config.RLogger.Println("Error scanning order: ", err)
 			continue
 		}
 
@@ -245,7 +254,7 @@ func (db *DB) GetAll() ([]models.Order, error) {
 		err = row.Scan(&delivery.Name, &delivery.Phone, &delivery.Zip, &delivery.City,
 			&delivery.Address, &delivery.Region, &delivery.Email)
 		if err != nil {
-			configs.RLogger.Println("Error getting delivery for order ", order.OrderUID, ": ", err)
+			config.RLogger.Println("Error getting delivery for order ", order.OrderUID, ": ", err)
 			continue
 		}
 		order.Delivery = delivery
@@ -257,7 +266,7 @@ func (db *DB) GetAll() ([]models.Order, error) {
 			&payment.Amount, &payment.PaymentDt, &payment.Bank, &payment.DeliveryCost,
 			&payment.GoodsTotal, &payment.CustomFee)
 		if err != nil {
-			configs.RLogger.Println("Error getting payment for order ", order.OrderUID, ": ", err)
+			config.RLogger.Println("Error getting payment for order ", order.OrderUID, ": ", err)
 			continue
 		}
 		order.Payment = payment
@@ -265,7 +274,7 @@ func (db *DB) GetAll() ([]models.Order, error) {
 		// Получаем товары
 		itemRows, err := db.Query("SELECT chrt_id, track_number, price, rid, name, sale, size, total_price, nm_id, brand, status FROM items WHERE order_uid = $1", order.OrderUID)
 		if err != nil {
-			configs.RLogger.Println("Error getting items for order ", order.OrderUID, ": ", err)
+			config.RLogger.Println("Error getting items for order ", order.OrderUID, ": ", err)
 			continue
 		}
 		defer itemRows.Close()
@@ -276,7 +285,7 @@ func (db *DB) GetAll() ([]models.Order, error) {
 			err := itemRows.Scan(&item.ChrtID, &item.TrackNumber, &item.Price, &item.Rid, &item.Name,
 				&item.Sale, &item.Size, &item.TotalPrice, &item.NmID, &item.Brand, &item.Status)
 			if err != nil {
-				configs.RLogger.Println("Error scanning item for order ", order.OrderUID, ": ", err)
+				config.RLogger.Println("Error scanning item for order ", order.OrderUID, ": ", err)
 				continue
 			}
 			items = append(items, item)
@@ -287,7 +296,7 @@ func (db *DB) GetAll() ([]models.Order, error) {
 	}
 
 	if err = rows.Err(); err != nil {
-		configs.RLogger.Println("Error iterating orders: ", err)
+		config.RLogger.Println("Error iterating orders: ", err)
 		return nil, err
 	}
 

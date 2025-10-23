@@ -4,9 +4,9 @@ import (
 	"net/http"
 	"time"
 
-	"readermicroservice/configs"
 	"readermicroservice/internal"
 	"readermicroservice/internal/cache"
+	"readermicroservice/internal/config"
 	"readermicroservice/internal/database"
 	"readermicroservice/internal/kafka/consumer"
 	"readermicroservice/internal/models"
@@ -40,15 +40,15 @@ func enableCORS(next http.HandlerFunc) http.HandlerFunc {
 // Middleware для логирования всех запросов
 func loggingMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		configs.RLogger.Printf("Received %s request for %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
-		configs.RLogger.Printf("Headers: %v", r.Header)
+		config.RLogger.Printf("Received %s request for %s from %s", r.Method, r.URL.Path, r.RemoteAddr)
+		config.RLogger.Printf("Headers: %v", r.Header)
 
 		next(w, r)
 	}
 }
 
 func main() {
-	configs.Configure()
+	config.Configure()
 
 	cfg := models.Config{
 		Host:     "db",
@@ -60,12 +60,12 @@ func main() {
 	time.Sleep(5 * time.Second)
 	db, err := database.New(cfg)
 	if err != nil {
-		configs.RLogger.Println("Error while creating database: ", err)
+		config.RLogger.Println("Error while creating database: ", err)
 	}
 	err = db.CreateTables()
 
 	if err != nil {
-		configs.RLogger.Println("Error while creating tables in DB: ", err)
+		config.RLogger.Println("Error while creating tables in DB: ", err)
 	}
 
 	c := cache.New()
