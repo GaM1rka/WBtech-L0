@@ -13,13 +13,18 @@ import (
 )
 
 const (
-	topicName string = "orders-topic"
+	path string = "readermicroservice/configs/main.yml"
 )
 
 func Listen(cache *cache.Cache, db *database.DB) {
+	var kafkaConfig *config.KafkaConfig
+	kafkaConfig, err := config.LoadKafkaConfig(path)
+	if err != nil {
+		return
+	}
 	reader := kafka.NewReader(kafka.ReaderConfig{
-		Brokers: config.Address,
-		Topic:   topicName,
+		Brokers: kafkaConfig.Brokers,
+		Topic:   kafkaConfig.Topic,
 	})
 	defer reader.Close()
 

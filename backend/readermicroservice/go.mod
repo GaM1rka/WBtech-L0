@@ -5,6 +5,7 @@ go 1.24.6
 require (
 	github.com/lib/pq v1.10.9
 	github.com/segmentio/kafka-go v0.4.49
+	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
