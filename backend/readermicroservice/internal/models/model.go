@@ -7,7 +7,7 @@ type Config struct {
 	Port     string
 	User     string
 	Password string
-	DBName   string
+	Database string
 }
 
 type Order struct {

@@ -14,18 +14,9 @@ type DB struct {
 	*sql.DB
 }
 
-const (
-	path string = "readermicroservice/configs/main.yml"
-)
-
 func New(cfg models.Config) (*DB, error) {
-	var DBConfig *config.DBConfig
-	DBConfig, err := config.LoadDBConfig(path)
-	if err != nil {
-		return nil, err
-	}
 	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		DBConfig.Host, DBConfig.Port, DBConfig.User, DBConfig.Password, DBConfig.Database)
+		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Database)
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		config.RLogger.Println("Error while initializing new DB: ", err)
