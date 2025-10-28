@@ -26,7 +26,7 @@ func (h *Handler) OrderHandler(resp http.ResponseWriter, req *http.Request) {
 	parts := strings.Split(req.URL.Path, "/")
 	if len(parts) > 0 {
 		orderUUID := parts[len(parts)-1]
-		if value, ok := h.cache.Elements[orderUUID]; ok {
+		if value, ok := h.cache.Get(orderUUID); ok {
 			config.RLogger.Println("Found data in cache for order: ", orderUUID)
 			config.RLogger.Println("Data: ", value)
 			jsonData, err := json.Marshal(value)
