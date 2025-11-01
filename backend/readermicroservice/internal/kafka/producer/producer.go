@@ -4,12 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"readermicroservice/internal/config"
 	"time"
 
 	"github.com/segmentio/kafka-go"
 )
-
-var Address = []string{"kafka1:29092"}
 
 // Структуры данных для заказа
 type Delivery struct {
@@ -66,15 +65,24 @@ type Order struct {
 	OofShard          string    `json:"oof_shard"`
 }
 
+const (
+	path string = "readermicroservice/configs/main.yml"
+)
+
 func main() {
+	var kafkaConfig *config.KafkaConfig
+	kafkaConfig, err := config.LoadKafkaConfig(path)
+	if err != nil {
+		log.Fatal("Error loading Kafka config: ", err)
+	}
 	ctx := context.Background()
 
-	writer := kafka.NewWriter(kafka.WriterConfig{
-		Brokers:   Address,
-		Topic:     "orders-topic",
+	writer := &kafka.Writer{
+		Addr:      kafka.TCP(kafkaConfig.Brokers...),
+		Topic:     kafkaConfig.Topic,
 		BatchSize: 1,
 		Async:     false,
-	})
+	}
 
 	defer writer.Close()
 
