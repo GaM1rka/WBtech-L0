@@ -39,14 +39,14 @@
 ## 🛠 Установка и запуск
 
 ### 1 Клонирование и настройка
-
+``` bash
 git clone <your-repo-url>  
 cd readermicroservice
-
+```
 ### 2 Запуск через Docker Compose
-
+```bash
 docker-compose up -d
-
+```
 Сервисы будут доступны по адресам  
 - API сервис http://localhost:8081  
 - Kafka UI http://localhost:8080  
@@ -57,8 +57,9 @@ docker-compose up -d
 ### GET /order/{order_uid}
 
 Получение информации о заказе  
+```bash
 curl http://localhost:8081/order/b563feb7b2b84b6test
-
+```
 Пример ответа  
 {
   "order_uid": "b563feb7b2b84b6test",
@@ -122,16 +123,19 @@ curl http://localhost:8081/order/b563feb7b2b84b6test
 ### Через Producer в контейнере
 
 # Зайдите в контейнер  
+```bash
 docker exec -it reader-app /bin/sh
-
+```
 # Запустите producer  
+```bash
 cd readermicroservice/internal/kafka/producer
+
 go run producer.go
-
+```
 ### Через curl
-
+```bash
 curl -X POST http://localhost:8081/test-order
-
+```
 ## ⚙️ Конфигурация
 
 Переменные окружения
@@ -158,7 +162,10 @@ curl -X POST http://localhost:8081/test-order
 ### Локальный запуск без Docker
 
 # Установите зависимости  
+```bash
 go mod tidy
-
+```
 # Запустите сервис  
+```bash
 go run cmd/main.go
+```
