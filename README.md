@@ -125,7 +125,7 @@ curl http://localhost:8081/order/b563feb7b2b84b6test
 docker exec -it reader-app /bin/sh
 
 # Запустите producer  
-cd /app  
+cd readermicroservice/internal/kafka/producer
 go run producer.go
 
 ### Через curl
