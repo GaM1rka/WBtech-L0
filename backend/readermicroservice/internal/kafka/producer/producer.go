@@ -69,7 +69,7 @@ type Order struct {
 	OofShard          string    `json:"oof_shard"`
 }
 
-const path = "readermicroservice/configs/main.yml"
+const path = "configs/main.yml"
 
 func main() {
 	var (
