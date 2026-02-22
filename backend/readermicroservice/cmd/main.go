@@ -78,11 +78,6 @@ func main() {
 		config.RLogger.Fatalf("Error while creating database: %v", err) // Используем Fatalf вместо Println
 	}
 
-	err = db.CreateTables()
-	if err != nil {
-		config.RLogger.Fatalf("Error while creating tables in DB: %v", err)
-	}
-
 	c := cache.New()
 	c.ResetDB(db)
 

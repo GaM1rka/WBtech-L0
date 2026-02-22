@@ -86,11 +86,27 @@ services:
       - DB_NAME=mydatabase
       - KAFKA_BROKERS=kafka1:29092
     depends_on:
-      db:
-        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
       kafka1:
         condition: service_started
     restart: unless-stopped
+    networks:
+      - app-network
+  
+  migrate:
+    image: migrate/migrate:4
+    volumes:
+      - ./readermicroservice/migrations:/migrations
+    depends_on:
+      db:
+        condition: service_healthy
+    entrypoint: [
+      "migrate",
+      "-path", "/migrations",
+      "-database", "postgres://myuser:mypassword@db:5432/mydatabase?sslmode=disable",
+      "up"
+    ]
     networks:
       - app-network
 

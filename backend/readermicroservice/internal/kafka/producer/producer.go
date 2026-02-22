@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
+	"fmt"
 	"log"
+	"math/rand"
 	"readermicroservice/internal/config"
 	"time"
 
+	"github.com/brianvoe/gofakeit/v6"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -65,92 +69,143 @@ type Order struct {
 	OofShard          string    `json:"oof_shard"`
 }
 
-const (
-	path string = "readermicroservice/configs/main.yml"
-)
+const path = "configs/main.yml"
 
 func main() {
-	var kafkaConfig *config.KafkaConfig
+	var (
+		n        = flag.Int("n", 100, "how many orders to generate and send")
+		interval = flag.Duration("interval", 50*time.Millisecond, "delay between messages (e.g. 10ms, 200ms, 1s)")
+		seed     = flag.Int64("seed", time.Now().UnixNano(), "random seed (use fixed for reproducible runs)")
+	)
+	flag.Parse()
+
 	kafkaConfig, err := config.LoadKafkaConfig(path)
 	if err != nil {
 		log.Fatal("Error loading Kafka config: ", err)
 	}
+
 	ctx := context.Background()
 
 	writer := &kafka.Writer{
-		Addr:      kafka.TCP(kafkaConfig.Brokers...),
-		Topic:     kafkaConfig.Topic,
-		BatchSize: 1,
-		Async:     false,
+		Addr:         kafka.TCP(kafkaConfig.Brokers...),
+		Topic:        kafkaConfig.Topic,
+		BatchSize:    1,
+		Async:        false,
+		RequiredAcks: kafka.RequireAll,
 	}
-
 	defer writer.Close()
 
-	// Создаем и заполняем структуру заказа
-	order := Order{
-		OrderUID:    "b563feb7b2b84b6test",
-		TrackNumber: "WBILMTESTTRACK",
+	// Инициализация генераторов
+	gofakeit.Seed(*seed)
+	rng := rand.New(rand.NewSource(*seed))
+
+	log.Printf("Sending %d messages to topic=%s brokers=%v interval=%s seed=%d",
+		*n, kafkaConfig.Topic, kafkaConfig.Brokers, interval.String(), *seed,
+	)
+
+	for i := 0; i < *n; i++ {
+		order := generateOrder(rng)
+
+		b, err := json.Marshal(order)
+		if err != nil {
+			log.Printf("marshal error: %v", err)
+			continue
+		}
+
+		err = writer.WriteMessages(ctx, kafka.Message{
+			Key:   []byte(order.OrderUID), // полезно для партиционирования/дедупа
+			Value: b,
+			Time:  time.Now(),
+		})
+		if err != nil {
+			log.Printf("send error (order_uid=%s): %v", order.OrderUID, err)
+			continue
+		}
+
+		log.Printf("sent %d/%d order_uid=%s items=%d", i+1, *n, order.OrderUID, len(order.Items))
+
+		if *interval > 0 {
+			time.Sleep(*interval)
+		}
+	}
+
+	log.Println("Done.")
+}
+
+func generateOrder(rng *rand.Rand) Order {
+	uid := gofakeit.UUID()
+	track := fmt.Sprintf("WB-%s", gofakeit.LetterN(12))
+
+	itemsCount := rng.Intn(5) + 1 // 1..5
+	items := make([]Item, 0, itemsCount)
+
+	goodsTotal := 0
+	for i := 0; i < itemsCount; i++ {
+		price := rng.Intn(5000) + 100       // 100..5100
+		sale := rng.Intn(61)                // 0..60
+		total := price * (100 - sale) / 100 // со скидкой
+		goodsTotal += total
+
+		items = append(items, Item{
+			ChrtID:      rng.Intn(9_999_999),
+			TrackNumber: track,
+			Price:       price,
+			Rid:         gofakeit.UUID(),
+			Name:        gofakeit.Word(),
+			Sale:        sale,
+			Size:        fmt.Sprintf("%d", rng.Intn(5)), // простая заглушка
+			TotalPrice:  total,
+			NmID:        rng.Intn(9_999_999),
+			Brand:       gofakeit.Company(),
+			Status:      200 + rng.Intn(30),
+		})
+	}
+
+	deliveryCost := rng.Intn(2000) // 0..1999
+	amount := goodsTotal + deliveryCost
+
+	created := time.Now().Add(-time.Duration(rng.Intn(3600*24*30)) * time.Second) // до ~30 дней назад
+
+	return Order{
+		OrderUID:    uid,
+		TrackNumber: track,
 		Entry:       "WBIL",
 		Delivery: Delivery{
-			Name:    "Test Testov",
-			Phone:   "+9720000000",
-			Zip:     "2639809",
-			City:    "Kiryat Mozkin",
-			Address: "Ploshad Mira 15",
-			Region:  "Kraiot",
-			Email:   "test@gmail.com",
+			Name:    gofakeit.Name(),
+			Phone:   gofakeit.Phone(),
+			Zip:     gofakeit.Zip(),
+			City:    gofakeit.City(),
+			Address: gofakeit.Address().Address,
+			Region:  gofakeit.State(),
+			Email:   gofakeit.Email(),
 		},
 		Payment: Payment{
-			Transaction:  "b563feb7b2b84b6test",
+			Transaction:  uid,
 			RequestID:    "",
-			Currency:     "USD",
+			Currency:     gofakeit.RandomString([]string{"RUB", "USD", "EUR"}),
 			Provider:     "wbpay",
-			Amount:       1817,
-			PaymentDt:    1637907727,
-			Bank:         "alpha",
-			DeliveryCost: 1500,
-			GoodsTotal:   317,
+			Amount:       amount,
+			PaymentDt:    created.Unix(),
+			Bank:         gofakeit.RandomString([]string{"alpha", "tinkoff", "sber", "vtb"}),
+			DeliveryCost: deliveryCost,
+			GoodsTotal:   goodsTotal,
 			CustomFee:    0,
 		},
-		Items: []Item{
-			{
-				ChrtID:      9934930,
-				TrackNumber: "WBILMTESTTRACK",
-				Price:       453,
-				Rid:         "ab4219087a764ae0btest",
-				Name:        "Mascaras",
-				Sale:        30,
-				Size:        "0",
-				TotalPrice:  317,
-				NmID:        2389212,
-				Brand:       "Vivienne Sabo",
-				Status:      202,
-			},
-		},
-		Locale:            "en",
+		Items:             items,
+		Locale:            gofakeit.RandomString([]string{"ru", "en"}),
 		InternalSignature: "",
-		CustomerID:        "test",
-		DeliveryService:   "meest",
-		Shardkey:          "9",
-		SmID:              99,
-		DateCreated:       time.Date(2021, 11, 26, 6, 22, 19, 0, time.UTC),
-		OofShard:          "1",
+		CustomerID:        fmt.Sprintf("user-%d", rng.Intn(10_000)),
+		DeliveryService:   gofakeit.RandomString([]string{"meest", "cdek", "dhl", "dpd"}),
+		Shardkey:          fmt.Sprintf("%d", rng.Intn(10)),
+		SmID:              rng.Intn(1000),
+		DateCreated:       created.UTC(),
+		OofShard:          fmt.Sprintf("%d", rng.Intn(5)),
 	}
+}
 
-	// Конвертируем структуру в JSON
-	jsonData, err := json.Marshal(order)
-	if err != nil {
-		log.Fatal("Error marshaling to JSON: ", err)
+func seedToUint64(s int64) uint64 {
+	if s < 0 {
+		return uint64(-s)
 	}
-
-	// Отправляем сообщение в Kafka
-	err = writer.WriteMessages(ctx, kafka.Message{
-		Value: jsonData,
-	})
-
-	if err != nil {
-		log.Fatal("Error while sending: ", err)
-	}
-
-	log.Println("Message sent successfully!")
+	return uint64(s)
 }
