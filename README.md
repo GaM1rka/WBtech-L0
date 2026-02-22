@@ -128,13 +128,11 @@ docker exec -it reader-app /bin/sh
 ```
 # Запустите producer  
 ```bash
-cd internal/kafka/producer
-
-go run producer.go
+go run ./internal/kafka/producer/producer.go
 ```
 ### Через curl
 ```bash
-curl -X POST http://localhost:8081/test-order
+curl -X POST http://localhost:8081/{order_uid}
 ```
 ## ⚙️ Конфигурация
 
