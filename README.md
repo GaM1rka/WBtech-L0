@@ -130,10 +130,7 @@ docker exec -it reader-app /bin/sh
 ```bash
 go run ./internal/kafka/producer/producer.go
 ```
-### Через curl
-```bash
-curl -X POST http://localhost:8081/{order_uid}
-```
+
 ## ⚙️ Конфигурация
 
 Переменные окружения
