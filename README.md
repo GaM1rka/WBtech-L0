@@ -128,7 +128,7 @@ docker exec -it reader-app /bin/sh
 ```
 # Запустите producer  
 ```bash
-cd readermicroservice/internal/kafka/producer
+cd internal/kafka/producer
 
 go run producer.go
 ```
