@@ -40,7 +40,7 @@
 
 ### 1 Клонирование и настройка
 ``` bash
-git clone <your-repo-url>  
+git clone <repo-url>  
 cd readermicroservice
 ```
 ### 2 Запуск через Docker Compose
@@ -56,7 +56,7 @@ docker-compose up -d
 
 ### GET /order/{order_uid}
 
-Получение информации о заказе  
+Пример получения информации о заказе  
 ```bash
 curl http://localhost:8081/order/b563feb7b2b84b6test
 ```
