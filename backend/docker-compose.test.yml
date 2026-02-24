@@ -1,0 +1,22 @@
+services:
+  test-db:
+    image: postgres:16-alpine
+    container_name: wb-test-postgres
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpassword
+      POSTGRES_DB: testdatabase
+    volumes:
+      - test_postgres_data:/var/lib/postgresql/data
+      - ./readermicroservice/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d testdatabase"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  test_postgres_data:
