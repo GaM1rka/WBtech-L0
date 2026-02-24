@@ -127,6 +127,23 @@ services:
     networks:
       - app-network
 
+  test-db:
+    image: postgres:16-alpine
+    container_name: test-postgres
+    ports:
+      - "5433:5432"  # Другой порт, чтобы не конфликтовать с основной БД
+    environment:
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+      POSTGRES_DB: mydatabase_test
+    volumes:
+      - ./readermicroservice/migrations:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U myuser -d mydatabase_test"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
 volumes:
   postgres_data:
 
