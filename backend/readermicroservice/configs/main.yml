@@ -2,9 +2,19 @@ kafka:
   brokers:
     - "kafka1:29092"
   topic: "orders-topic"
+
 db:
   host: "db"
   port: 5432
   user: "myuser"
   password: "mypassword"
   dbname: "mydatabase"
+
+cache:
+  max_size: 1000
+  default_ttl: 24h
+  cleanup_interval: 1h
+
+retry:
+  max_retries: 3
+  base_delay: 1s
