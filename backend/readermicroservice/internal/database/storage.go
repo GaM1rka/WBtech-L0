@@ -14,19 +14,27 @@ type DB struct {
 	*sql.DB
 }
 
-func New(cfg models.Config) (*DB, error) {
-	connStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+// New создает новое подключение к БД
+func New(cfg config.DBConfig) (*DB, error) {
+	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable",
 		cfg.Host, cfg.Port, cfg.User, cfg.Password, cfg.Database)
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
 		config.RLogger.Println("Error while initializing new DB: ", err)
-		return nil, err
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
+
 	if err = db.Ping(); err != nil {
-		config.RLogger.Println("Falied to ping DB: ", err)
-		return nil, err
+		config.RLogger.Println("Failed to ping DB: ", err)
+		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
+
 	return &DB{db}, nil
+}
+
+func (db *DB) Close() error {
+	return db.DB.Close()
 }
 
 func (db *DB) Insert(data models.Order) error {

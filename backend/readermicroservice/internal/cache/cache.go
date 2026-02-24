@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"readermicroservice/internal/database"
+	"readermicroservice/internal/config"
 	"readermicroservice/internal/models"
 )
 
@@ -14,6 +14,7 @@ type cacheItem struct {
 	createdAt  time.Time
 }
 
+// Cache реализует интерфейс OrderCache
 type Cache struct {
 	mu              sync.RWMutex
 	elements        map[string]*cacheItem
@@ -23,17 +24,18 @@ type Cache struct {
 	stopCleanup     chan bool
 }
 
-func New() *Cache {
-	cache := &Cache{
+// New создает новый экземпляр кэша
+func New(conf *config.CacheConfig) *Cache {
+	c := &Cache{
 		elements:        make(map[string]*cacheItem),
-		maxSize:         1000,           // Максимальное количество элементов
-		defaultTTL:      24 * time.Hour, // Время жизни элемента
-		cleanupInterval: 1 * time.Hour,  // Интервал очистки
+		maxSize:         conf.MaxSize,
+		defaultTTL:      conf.DefaultTTL,
+		cleanupInterval: conf.CleanupInterval,
 		stopCleanup:     make(chan bool),
 	}
 
-	go cache.startCleanup()
-	return cache
+	go c.startCleanup()
+	return c
 }
 
 // Add добавляет элемент в кэш
@@ -41,7 +43,6 @@ func (c *Cache) Add(order models.Order) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Если достигли максимального размера, удаляем самый старый элемент
 	if len(c.elements) >= c.maxSize {
 		c.evictOldest()
 	}
@@ -53,7 +54,7 @@ func (c *Cache) Add(order models.Order) {
 	}
 }
 
-// Get получает элемент из кэша и обновляет время доступа
+// Get получает элемент из кэша
 func (c *Cache) Get(orderUID string) (models.Order, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -63,7 +64,6 @@ func (c *Cache) Get(orderUID string) (models.Order, bool) {
 		return models.Order{}, false
 	}
 
-	// Обновляем время последнего доступа
 	item.lastAccess = time.Now()
 	return item.order, true
 }
@@ -113,7 +113,7 @@ func (c *Cache) cleanupExpired() {
 	}
 }
 
-// StopCleanup останавливает горутину очистки (для graceful shutdown)
+// StopCleanup останавливает горутину очистки
 func (c *Cache) StopCleanup() {
 	close(c.stopCleanup)
 }
@@ -131,22 +131,24 @@ func (c *Cache) GetStats() (int, int, []string) {
 }
 
 // ResetDB загружает данные из БД в кэш
-func (c *Cache) ResetDB(db *database.DB) {
+func (c *Cache) ResetDB(db OrderDatabase) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	orders, err := db.GetAll()
-	if err == nil {
-		// Очищаем текущий кэш перед загрузкой
-		c.elements = make(map[string]*cacheItem)
+	if err != nil {
+		config.RLogger.Printf("Error loading data from DB to cache: %v", err)
+		return
+	}
 
-		for _, item := range orders {
-			if len(c.elements) < c.maxSize {
-				c.elements[item.OrderUID] = &cacheItem{
-					order:      item,
-					lastAccess: time.Now(),
-					createdAt:  time.Now(),
-				}
+	c.elements = make(map[string]*cacheItem)
+
+	for _, item := range orders {
+		if len(c.elements) < c.maxSize {
+			c.elements[item.OrderUID] = &cacheItem{
+				order:      item,
+				lastAccess: time.Now(),
+				createdAt:  time.Now(),
 			}
 		}
 	}

@@ -4,7 +4,7 @@ import "time"
 
 type Config struct {
 	Host     string
-	Port     string
+	Port     int
 	User     string
 	Password string
 	Database string
