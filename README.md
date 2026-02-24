@@ -157,6 +157,19 @@ go run ./internal/kafka/producer/producer.go
 ``` bash
 docker-compose run --rm migrate-down
 ```
+## Запуск тестов
+```bash
+# Предварительно поднять тестовую БД
+cd WBtech-L0/backend/
+docker-compose -f docker-compose.test.yml up -d
+cd readermicroservice
+# Запустить все тесты, включая интеграционные
+go test ./... -v
+cd ..
+# Остановить тестовую БД
+docker-compose -f docker-compose.test.yml down -v
+
+```
 
 ## 🔧 Разработка
 
