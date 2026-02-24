@@ -14,7 +14,6 @@ import (
 	"github.com/segmentio/kafka-go"
 )
 
-// Структуры данных для заказа
 type Delivery struct {
 	Name    string `json:"name"`
 	Phone   string `json:"phone"`
@@ -79,16 +78,17 @@ func main() {
 	)
 	flag.Parse()
 
-	kafkaConfig, err := config.LoadKafkaConfig(path)
+	// Загружаем полную конфигурацию
+	cfg, err := config.LoadConfig(path)
 	if err != nil {
-		log.Fatal("Error loading Kafka config: ", err)
+		log.Fatal("Error loading config: ", err)
 	}
 
 	ctx := context.Background()
 
 	writer := &kafka.Writer{
-		Addr:         kafka.TCP(kafkaConfig.Brokers...),
-		Topic:        kafkaConfig.Topic,
+		Addr:         kafka.TCP(cfg.Kafka.Brokers...),
+		Topic:        cfg.Kafka.Topic,
 		BatchSize:    1,
 		Async:        false,
 		RequiredAcks: kafka.RequireAll,
@@ -100,7 +100,7 @@ func main() {
 	rng := rand.New(rand.NewSource(*seed))
 
 	log.Printf("Sending %d messages to topic=%s brokers=%v interval=%s seed=%d",
-		*n, kafkaConfig.Topic, kafkaConfig.Brokers, interval.String(), *seed,
+		*n, cfg.Kafka.Topic, cfg.Kafka.Brokers, interval.String(), *seed,
 	)
 
 	for i := 0; i < *n; i++ {
@@ -113,7 +113,7 @@ func main() {
 		}
 
 		err = writer.WriteMessages(ctx, kafka.Message{
-			Key:   []byte(order.OrderUID), // полезно для партиционирования/дедупа
+			Key:   []byte(order.OrderUID),
 			Value: b,
 			Time:  time.Now(),
 		})
@@ -141,9 +141,9 @@ func generateOrder(rng *rand.Rand) Order {
 
 	goodsTotal := 0
 	for i := 0; i < itemsCount; i++ {
-		price := rng.Intn(5000) + 100       // 100..5100
-		sale := rng.Intn(61)                // 0..60
-		total := price * (100 - sale) / 100 // со скидкой
+		price := rng.Intn(5000) + 100
+		sale := rng.Intn(61)
+		total := price * (100 - sale) / 100
 		goodsTotal += total
 
 		items = append(items, Item{
@@ -153,7 +153,7 @@ func generateOrder(rng *rand.Rand) Order {
 			Rid:         gofakeit.UUID(),
 			Name:        gofakeit.Word(),
 			Sale:        sale,
-			Size:        fmt.Sprintf("%d", rng.Intn(5)), // простая заглушка
+			Size:        fmt.Sprintf("%d", rng.Intn(5)),
 			TotalPrice:  total,
 			NmID:        rng.Intn(9_999_999),
 			Brand:       gofakeit.Company(),
@@ -161,10 +161,10 @@ func generateOrder(rng *rand.Rand) Order {
 		})
 	}
 
-	deliveryCost := rng.Intn(2000) // 0..1999
+	deliveryCost := rng.Intn(2000)
 	amount := goodsTotal + deliveryCost
 
-	created := time.Now().Add(-time.Duration(rng.Intn(3600*24*30)) * time.Second) // до ~30 дней назад
+	created := time.Now().Add(-time.Duration(rng.Intn(3600*24*30)) * time.Second)
 
 	return Order{
 		OrderUID:    uid,
